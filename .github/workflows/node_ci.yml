@@ -1,17 +1,22 @@
-name: Workflow Nodejs
-run-name: Build ${{ github.run_number }}
+name: Node.js CI Workflow
 
 on:
-  push:
-    branches: [ "master", "main", "feature/*", "f/*", "hotfix/*" ]
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [ "master", "main" ]
-
-concurrency: pipeline
-env:
-  NODE_VERSION: '18.x'
-  WORKING_DIRECTORY: '.'
+  workflow_call:
+    inputs:
+      project:
+        description: 'Project name'
+        required: true
+        type: string
+      node_version:
+        description: 'Node.js version'
+        required: true
+        type: string
+        default: '18.x'
+      working_directory:
+        description: 'Working directory'
+        required: true
+        type: string
+        default: '.'
 
 jobs:
   setup:
@@ -19,14 +24,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+      - name: Set up Node.js ${{ inputs.node_version }}
+        uses: actions/setup-node@v2
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ inputs.node_version }}
 
   build:
     runs-on: ubuntu-latest
     needs: setup
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
     steps:
       - name: Validate Branch
         run: |
@@ -40,23 +48,26 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Verify installed dependencies
         run: npm list
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
   unit-tests:
     runs-on: ubuntu-latest
-    needs: [setup, build]
+    needs: build
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
     steps:
       - name: Unit Tests
         run: npm test
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
   code-analysis:
     runs-on: ubuntu-latest
-    needs: [setup, unit-tests]
+    needs: unit-tests
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
     steps:
       - name: Code Analysis
         uses: SonarSource/sonarcloud-github-action@master
@@ -66,11 +77,14 @@ jobs:
           args: >
             -Dsonar.organization=${{ vars.SONAR_ORG_KEY }}
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-            -Dsonar.projectName=${{ github.event.repository.name }}
+            -Dsonar.projectName=${{ inputs.project }}
 
   docker-build:
     runs-on: ubuntu-latest
-    needs: [setup, unit-tests, code-analysis]
+    needs: [code-analysis]
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -84,18 +98,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push postgres-db
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: backend-app/Dockerfile.db.dev
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/postgres_db:latest
-
-      - name: Build and push nodejs-api
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: backend-app/Dockerfile.dev
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/nodejs-api:latest
+      - name: Build and push Docker images
+        run: |
+          image_name="${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.project }}"
+          docker build -f docker/Dockerfile -t $image_name:latest .
+          docker push $image_name:latest

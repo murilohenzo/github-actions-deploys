@@ -1,36 +1,39 @@
-name: Workflow Java - SpringBoot
-run-name: Build ${{ github.run_number }}
+name: Java CI Workflow
 
 on:
-  push:
-    branches: [ "master", "main", "feature/*", "f/*", "hotfix/*" ]
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [ "master", "main" ]
-
-concurrency: pipeline
-env:
-  JAVA_VERSION: '21'
-  JAVA_DISTRIBUTION: 'corretto'
-  WORKING_DIRECTORY: '.'
+  workflow_call:
+    inputs:
+      project:
+        description: 'Project name'
+        required: true
+        type: string
+      java_version:
+        description: 'Java version'
+        required: true
+        type: string
+        default: '21'
+      java_distribution:
+        description: 'Java distribution'
+        required: true
+        type: string
+        default: 'corretto'
 
 jobs:
-  setup:
+  build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.project }}
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
+      - name: Set up JDK ${{ inputs.java_version }}
         uses: actions/setup-java@v3
         with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ inputs.java_version }}
+          distribution: ${{ inputs.java_distribution }}
           cache: maven
 
-  build:
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
       - name: Validate Branch
         run: |
           current_branch=$(echo "${GITHUB_REF#refs/heads/}")
@@ -43,15 +46,25 @@ jobs:
 
       - name: Build
         run: mvn clean install -DskipTests
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
   unit-tests:
     runs-on: ubuntu-latest
-    needs: [setup, build]
+    needs: build
+    defaults:
+      run:
+        working-directory: ${{ inputs.project }}
     steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK ${{ inputs.java_version }}
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: ${{ inputs.java_distribution }}
+          cache: maven
+
       - name: Unit Tests
         run: mvn -B org.jacoco:jacoco-maven-plugin:0.8.11:prepare-agent test org.apache.maven.plugins:maven-surefire-report-plugin:3.2.5:report org.jacoco:jacoco-maven-plugin:0.8.11:report
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Code Analysis
         env:
@@ -61,13 +74,17 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.organization=${{ vars.SONAR_ORG_KEY }} \
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
-            -Dsonar.projectName=${{ github.event.repository.name }}
-        working-directory: ${{ env.WORKING_DIRECTORY }}
+            -Dsonar.projectName=${{ inputs.project }}
 
   docker-build:
     runs-on: ubuntu-latest
-    needs: [setup, unit-tests]
+    needs: unit-tests
+    defaults:
+      run:
+        working-directory: ${{ inputs.project }}
     steps:
+      - uses: actions/checkout@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -79,7 +96,6 @@ jobs:
 
       - name: Build and push Docker images
         run: |
-          image_name="${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}"
+          image_name="${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.project }}"
           docker build -f docker/Dockerfile -t $image_name:latest .
           docker push $image_name:latest
-        working-directory: ${{ env.WORKING_DIRECTORY }}
