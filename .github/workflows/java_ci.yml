@@ -22,15 +22,6 @@ on:
         required: false
         type: boolean
         default: true
-      docker_username:
-        description: 'Secret Docker Username'
-        required: true
-        type: string
-      docker_password:
-        description: 'Secret Docker Password'
-        required: true
-        type: string
-
 jobs:
   build:
     runs-on: ubuntu-latest
