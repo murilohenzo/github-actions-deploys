@@ -17,7 +17,7 @@ on:
         required: false
         type: string
         default: 'corretto'
-      run_code_analysis:
+      code_analysis_enabled:
         description: 'Run Code Analysis'
         required: false
         type: boolean
@@ -76,7 +76,7 @@ jobs:
   code-analysis:
     runs-on: ubuntu-latest
     needs: unit-tests
-    if: ${{ inputs.run_code_analysis }} == true
+    if: ${{ needs.run_code_analysis.outputs.code_analysis_enabled == 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -84,8 +84,8 @@ jobs:
       - name: Set up JDK 21 - corretto
         uses: actions/setup-java@v3
         with:
-          java-version: '21'
-          distribution: 'corretto'
+          java-version: ${{ inputs.java_version }}
+          distribution: ${{ inputs.java_distribution }}
           cache: maven
 
       - name: SonarCloud Code Analysis
@@ -100,7 +100,7 @@ jobs:
             -Dsonar.projectName=${{ github.event.repository.name }}
 
       - name: Log Analysis Skipped
-        if: ${{ inputs.run_code_analysis }} == false
+        if: ${{ needs.run_code_analysis.outputs.code_analysis_enabled == 'false' }}
         run: echo "Code analysis was skipped."
 
   docker-build:
