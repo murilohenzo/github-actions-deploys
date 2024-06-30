@@ -9,12 +9,12 @@ on:
         type: string
       java_version:
         description: 'Java version'
-        required: true
+        required: false
         type: string
         default: '21'
       java_distribution:
         description: 'Java distribution'
-        required: true
+        required: false
         type: string
         default: 'corretto'
 

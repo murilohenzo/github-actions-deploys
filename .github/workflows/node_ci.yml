@@ -9,12 +9,12 @@ on:
         type: string
       node_version:
         description: 'Node.js version'
-        required: true
+        required: false
         type: string
         default: '18.x'
       working_directory:
         description: 'Working directory'
-        required: true
+        required: false
         type: string
         default: '.'
 

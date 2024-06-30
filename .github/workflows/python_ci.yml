@@ -9,7 +9,7 @@ on:
         type: string
       python_version:
         description: 'Python version'
-        required: true
+        required: false
         type: string
         default: '3.12.2'
 
