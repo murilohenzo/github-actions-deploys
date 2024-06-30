@@ -17,7 +17,7 @@ on:
         required: false
         type: string
         default: 'corretto'
-      code_analysis_enabled:
+      run_code_analysis:
         description: 'Run Code Analysis'
         required: false
         type: boolean
