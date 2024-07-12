@@ -70,8 +70,6 @@ jobs:
 
       - name: Code Analysis
         uses: SonarSource/sonarcloud-github-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.organization=${{ vars.SONAR_ORG_KEY }}

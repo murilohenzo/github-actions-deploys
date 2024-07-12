@@ -89,8 +89,6 @@ jobs:
 
       - name: SonarCloud Code Analysis
         id: sonar_analysis
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           mvn verify sonar:sonar \
             -Dsonar.host.url=https://sonarcloud.io \
@@ -109,6 +107,13 @@ jobs:
       run:
         working-directory: ${{ inputs.project }}
     steps:
+
+      - name: Teste
+        env:
+          TESTE: ${{ secrets.TESTE }}
+        run: |
+            echo "$TESTE"
+
       - name: Checkout repository
         uses: actions/checkout@v2
 
