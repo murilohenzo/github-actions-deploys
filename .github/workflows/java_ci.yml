@@ -109,10 +109,7 @@ jobs:
     steps:
 
       - name: Teste
-        env:
-          TESTE: ${{ secrets.TESTE }}
-        run: |
-            echo "$TESTE"
+        run: echo ${{ secrets.TESTE }}
 
       - name: Checkout repository
         uses: actions/checkout@v2
